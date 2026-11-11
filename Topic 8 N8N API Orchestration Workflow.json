@@ -1,0 +1,211 @@
+{
+  "name": "Topic 8 N8N API Orchestration Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "726d5de3-8a4d-4e65-8481-0b2fd12c32c2",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"ticketId\": \"TCK-8855\",\n  \"customerEmail\": \"alice@example.com\",\n  \"issueDescription\": \"My account password reset button is not working.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "bf14a7f6-b639-43e3-b340-4f51f062ae9e",
+      "name": "Incoming Support Ticket"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f4d03dad-c23c-4939-a085-e5fb4dfbdf41",
+              "name": "transactionId",
+              "value": "={{ 'TX-' + $now.toFormat('yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 1000) }}",
+              "type": "string"
+            },
+            {
+              "id": "3b886787-7358-41bb-bf3b-54839ed6c93d",
+              "name": "ticketId",
+              "value": "={{ $json.ticketId }}",
+              "type": "string"
+            },
+            {
+              "id": "799a70eb-7332-4651-a67c-8ae99772b72c",
+              "name": "customerEmail",
+              "value": "={{ $json.customerEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "52d6c8c0-df92-4bfd-847d-fc05a5589bac",
+              "name": "issueDescription",
+              "value": "={{ $json.issueDescription }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "b0940983-baad-4d9a-ab8d-597d58caddf0",
+      "name": "Initialize Transaction."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8cec1204-c04c-4c20-abce-54fa2e92c2d8",
+              "name": "customerId",
+              "value": "={{ $json.customerEmail === 'alice@example.com' ? 'CUST-7744' : 'CUST-9999' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "67daf74a-a154-4e73-b6bc-3754ef9b7500",
+      "name": "Customer Database Lookup"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://jsonplaceholder.typicode.com/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{ $json.transactionId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"transactionId\": $json.transactionId,\n    \"customerId\": $json.customerId,\n    \"ticketId\": $json.ticketId,\n    \"details\": $json.issueDescription,\n    \"status\": \"LOGGED\"\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        896,
+        0
+      ],
+      "id": "58152fec-78cf-42fd-adec-6a25c36fada9",
+      "name": "Log to Database"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://postman-echo.com/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"alertType\": \"EMAIL\",\n  \"recipient\": \"{{ $('Customer Database Lookup').item.json.customerEmail }}\",\n  \"subject\": \"Support {{ $json.ticketId }} Ticket Logged\",\n  \"body\": \"Hi, your ticket has been successfully registered under Transaction ID {{ $json.transactionId }}. We will investigate shortly.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "31b9c582-c5c2-4dbc-a788-54c1a531bd11",
+      "name": "Send Notification Alert"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Incoming Support Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Incoming Support Ticket": {
+      "main": [
+        [
+          {
+            "node": "Initialize Transaction.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Transaction.": {
+      "main": [
+        [
+          {
+            "node": "Customer Database Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Database Lookup": {
+      "main": [
+        [
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Database": {
+      "main": [
+        [
+          {
+            "node": "Send Notification Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "558053f6-429f-44b2-81fb-6a4bff1c265c",
+  "meta": {
+    "instanceId": "a03c7678428ef19ededbf912f16f7d5798ec7b9ab4c17f2a2def6a9e791e7215"
+  },
+  "nodeGroups": [],
+  "id": "wIiFbxDhNUe94jTj",
+  "tags": []
+}
